@@ -1,0 +1,25 @@
+#!/bin/bash
+
+MENU=/boot/grub/grub.cfg
+GRUB=/etc/default/grub
+
+OPT_SAVED="GRUB_DEFAULT=saved"
+(cat $GRUB | grep $OPT_SAVED > /dev/null) || {
+  echo "Please set $OPT_SAVED in $GRUB"
+  echo "# grub-set-default 0"
+  echo "# update-grub"
+  exit 1
+}
+
+if [[ $# == 0 ]]; then
+  CNT=0
+  while read entry ; do
+    ENTRY=$(echo $entry | cut -d' ' -f2- | awk -F'--' '{print $1}' | tr "'\"" "  ")
+    echo "$CNT: $ENTRY"
+    CNT=$((CNT+1))
+  done < <(sudo cat $MENU | grep "menuentry ")
+  echo "NOTE."
+  sudo grub-editenv list
+else
+  sudo grub-reboot $1 && sudo reboot -d
+fi

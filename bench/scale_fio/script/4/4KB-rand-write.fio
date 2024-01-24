@@ -1,0 +1,15 @@
+[global]
+name=chp_test
+directory=/mnt/test
+numjobs=4
+ioengine=psync
+iodepth=1
+direct=0
+norandommap
+group_reporting=1
+fdatasync=1
+
+[seq-write-4kb]
+bs=4K
+rw=randwrite
+size=32G

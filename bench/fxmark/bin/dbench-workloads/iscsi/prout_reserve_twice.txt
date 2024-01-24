@@ -1,0 +1,13 @@
+# Just register a key and then reserve the target with 
+# type = 0x01 (Write exclusive). Then tries to reserve with type
+# = 0x03 (Exclusive access). Since the first reservation was not
+# released, then it should fail in the second reservation with
+# 0x18 (Reservation Conflict).
+
+# Register
+0.000 PROUT 0  0          0 0xdeadbeef 0x00
+# Reserve (type = 1)
+1.000 PROUT 1  1 0xdeadbeef          0 0x00
+1.000 PROUT 1  3 0xdeadbeef          0 0x18
+1.000 PROUT 2  1 0xdeadbeef          0 0x00
+2.000 PROUT 0  0 0xdeadbeef          0 0x00

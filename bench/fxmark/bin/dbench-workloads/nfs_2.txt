@@ -1,0 +1,10 @@
+RANDOMSTRING 1 "/test[0123456789][01234567890].file"
+#
+# the LOOP/ENDLOOP construct will loop over an entire section of the loadfile
+#
+LOOP 5
+CREATE3 $1 *
+LOOKUP3 $1 0x00000000
+WRITE3 $1 0 1024 0 0x00000000
+WRITE3 $1 1024 1024 0 0x00000000
+ENDLOOP

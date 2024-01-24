@@ -1,0 +1,71 @@
+# timestamp TESTUNITREADY sense
+0.000 TESTUNITREADY 0x00
+#
+# READ10/WRITE10 take an LBA and a XFERLEN arguments.
+# These can be absolute numbers,
+# but also as a simple expression for generation of random I/O
+#
+# These are strings starting with a '*' followed by one or more
+# qualifiers :
+# '*'    : Random 64 bit integer
+# '/yyy' : align the number to yyy. This is the same as x = (x/y)*y
+# '%yyy' : modulo yyy. This is the same as x = x%y
+# '+yyy' : Add y
+#
+# Examples :
+# '*'           A random value between 0 and 2**64-1
+# '*/8'         A random value aligned to a page boundary (8blocks)
+# '*/8%5000000' A random value between 0 and 500000 aligned by 8.
+#
+# '*%100+25'    A random value between 25 and 124
+#
+#
+# timestamp READ10 lba #xferlen rd grp sense
+#   if lba is * this means to use a random lba
+#
+#   rd is :
+#     3 bits     0xe0 : RDPROTECT
+#     1 bit      0x10 : DPO
+#     1 bit      0x08 : FUA
+#     1 bit      0x02 : FUA_NV
+0.000 READ10    0 2 0 0 0x00
+0.000 READ10    2 2 0 0 0x00
+0.000 READ10    4 2 0 0 0x00
+0.000 READ10    6 2 0 0 0x00
+0.000 READ10    * 2 0 0 0x00
+#
+#
+# timestamp WRITE10 lba #xferlen FUAbits grp sense
+# WRITES are ignored by default and must be activated using --allow-scsi-writes
+#
+#   FUAbits are cdb byte#1 in SBC:
+#     a value of 0x06 will force the data to be written to the medium
+#     a value of 0x00 allow the device to only write to nv-ram and not medium
+0.000 WRITE10 5000 1 0x06 0 0x00
+#
+#
+# timestamp READCAPACITY10 lba pmi(0/1) sense
+0.000 READCAPACITY10 0 0 0x00
+
+# timestamp SYNCHRONIZECACHE10 lba numblocks syncnv immed sense
+0.000 SYNCHRONIZECACHE10 0 0 1 1 0x00
+
+# Reservation:
+# PROUT  <service action> <type> <key> <sa-key>
+
+# Register
+0.000 PROUT 0  0          0 0xdeadbeef 0x00
+# Reserve (type = 1)
+0.000 PROUT 1  1 0xdeadbeef          0 0x00
+# Reservation conflict (type = 3)
+0.000 PROUT 1  3 0xdeadbeef          0 0x18
+# Reservation conflict (type = 5)
+0.000 PROUT 1  5 0xdeadbeef          0 0x18
+# Release (type = 1)
+0.000 PROUT 2  1 0xdeadbeef          0 0x00
+# Reservation OK now (type = 3)
+0.000 PROUT 1  3 0xdeadbeef          0 0x00
+# Release (type = 3)
+0.000 PROUT 2  3 0xdeadbeef          0 0x00
+# Unregister
+0.000 PROUT 0  0 0xdeadbeef          0 0x00

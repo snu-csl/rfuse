@@ -1,0 +1,116 @@
+#!/usr/bin/env python2
+
+import errno
+import sys
+
+# Load topology infomation from stdin
+topology_info = [dict(map(str.strip, line.split(":", 1))
+                      for line in block.splitlines())
+                 for block in sys.stdin.read().split("\n\n")
+                 if len(block.strip())]
+topology_info = topology_info[0]
+
+MODEL_NAME     = topology_info["model name"]
+PHYSICAL_CHIPS = topology_info["physical chips"]
+CORE_PER_CHIP  = topology_info["core per chip"]
+SMT_LEVEL      = topology_info["smt level"]
+CACHE_PER_CORE = topology_info["cache per core"]
+seq_cores      = topology_info["seq"]
+rr_cores       = topology_info["rr"] 
+
+
+# Generate testing of number of hw threads
+def gen_test_hw_thr_counts(fine_grain):
+    physical_chips = int(PHYSICAL_CHIPS)
+    core_per_chip  = int(CORE_PER_CHIP)
+    smt_level      = int(SMT_LEVEL)
+    total_core     = physical_chips * core_per_chip
+    total_hw_thr   = smt_level * total_core
+    test_hw_thr    = set([1])
+
+    # small hw threads: 1, 2, 4
+    if 2 > total_hw_thr:
+        return "1"
+    test_hw_thr.add(2)
+
+    if 4 > total_hw_thr:
+        return ','.join( map(lambda cnt: str(cnt), sorted(list(test_hw_thr))) )
+    test_hw_thr.add(4)
+
+    # for all smt levels
+    for smt in range(1, smt_level+1):
+        # smt boundary
+        cnt = smt * core_per_chip * physical_chips
+        test_hw_thr.add(cnt)
+
+        # for smt level 1 and 2, chip boundary
+        base_hw_thr = total_core * (smt - 1)
+        if smt <= 2:
+            for chip in range(1, physical_chips+1):
+                cnt = base_hw_thr + (chip * core_per_chip)
+                test_hw_thr.add(cnt)
+
+        # for smt level above 2, pick in the middle of the smt level
+        if smt > 2:
+            cnt = base_hw_thr + int(1.5 * core_per_chip * physical_chips)
+            test_hw_thr.add(cnt)
+
+    if fine_grain:
+        # for smt level 1
+        inc = cnt = int(core_per_chip/2) if int(core_per_chip/2) <= 10 else 8
+        if inc < 1:
+            inc = 1
+        while (cnt < total_core):
+            # do not add too-close points
+            if cnt-1 not in test_hw_thr and cnt+1 not in test_hw_thr:
+                test_hw_thr.add(cnt)
+            cnt += inc
+    # make it sorted string
+    return ','.join( map(lambda cnt: str(cnt), sorted(list(test_hw_thr))) )
+
+test_hw_thr_cnts_fine_grain = gen_test_hw_thr_counts(True)
+test_hw_thr_cnts_coarse_grain = gen_test_hw_thr_counts(False)
+
+# Generate C header
+def gen_in_c(): 
+    print "const char *MODEL_NAME                             = \"" + \
+        MODEL_NAME + "\";"
+    print "const unsigned int PHYSICAL_CHIPS                  = " + \
+        PHYSICAL_CHIPS + ";"
+    print "const unsigned int CORE_PER_CHIP                   = " + \
+        CORE_PER_CHIP + ";"
+    print "const unsigned int SMT_LEVEL                       = " + \
+        SMT_LEVEL + ";"
+    print "const unsigned int CACHE_PER_CORE                  = " + \
+        CACHE_PER_CORE + ";"
+    print "const unsigned int seq_cores[]                     = " + \
+        "{" + seq_cores + "};"
+    print "const unsigned int rr_cores[]                      = " + \
+        "{" + rr_cores  + "};"
+    print "const unsigned int test_hw_thr_cnts_fine_grain[]   = " + \
+        "{" + test_hw_thr_cnts_fine_grain  + "};"
+    print "const unsigned int test_hw_thr_cnts_coarse_grain[] = " + \
+        "{" + test_hw_thr_cnts_coarse_grain  + "};"
+
+def gen_in_py(): 
+    print "MODEL_NAME                    = \"" + MODEL_NAME + "\""
+    print "PHYSICAL_CHIPS                = " + PHYSICAL_CHIPS
+    print "CORE_PER_CHIP                 = " + CORE_PER_CHIP
+    print "SMT_LEVEL                     = " + SMT_LEVEL
+    print "CACHE_PER_CORE                = " + CACHE_PER_CORE
+    print "seq_cores                     = [" + seq_cores + "]"
+    print "rr_cores                      = [" + rr_cores  + "]"
+    print "test_hw_thr_cnts_fine_grain   = [" + test_hw_thr_cnts_fine_grain + "]"
+    print "test_hw_thr_cnts_coarse_grain = [" + test_hw_thr_cnts_coarse_grain + "]"
+
+# main 
+if __name__ == "__main__":
+    if sys.argv[1] == "c":
+        gen_in_c()
+    elif sys.argv[1] == "py":
+        gen_in_py()
+    else:
+        print "Usage: %s {c|py}" % sys.argv[0]
+    
+        
+    

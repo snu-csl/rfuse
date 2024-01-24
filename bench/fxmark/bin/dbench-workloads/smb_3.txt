@@ -1,0 +1,22 @@
+# example loadfile for SMB
+# create a file and write 4kb to it at random offsets
+# make sure the offset is between 0 and 0x10000000 and that it is aligned to 4kb
+# boundaries
+#
+# RANDOMSTRING creates a string by replacing all patterns [<characters>]
+# with one single character p[icked from the specified set.
+# This string is then stored in the specified save slot.
+# There are ten such slots, numbered from 0 to 9.
+#
+# When specifying filenames in further loadfile commands, the pattern 
+# $<digit> will be substituted for the current value in save slot <digit>.
+#
+#
+MKDIR "/client1" *
+#
+# Create a filename containing one random digit 0-9
+RANDOMSTRING 1 "file[0123456789].dat"
+OPEN "/client1/$1" 0x0c SUCCESS
+REPEAT 10
+WRITE "/client1/$1" *%0x10000000/4096 4096 SUCCESS
+CLOSE "/client1/$1" SUCCESS

@@ -1,0 +1,96 @@
+# example loadfile for SMB
+#
+# We do not distinguish between different error types so the last parameter,
+# the status is 
+#  SUCCESS that the operation must be successful
+#  ERROR that the operation must fail
+#  * which means don't care
+#
+# Filenames in SMB MUST start with '\' or '/'
+#
+#
+# The READ/WRITE commands takes an offset. This can be specified either as
+# an absolute number, but also as a simple expression for generation of
+# random I/O
+#
+# Offset is then a string starting with a '*' followed by one or more
+# qualifier :
+# '*'    : Random 64 bit integer
+# '/yyy' : align the number to yyy. This is the same as x = (x/y)*y
+# '%yyy' : modulo yyy. This is the same as x = x%y
+# '+yyy' : Add y
+#
+# Examples :
+# '*'         A random offset between 0 and 2**64-1
+# '*/0x1000'  A random offset aligned to a page boundary (4096)
+# '*/0x1000%5000000' A random offset between 0 and 500000 aligned to page
+#                    boundary
+#
+# '*%100+25'  A random offset between 25 and 124
+#
+#
+# You can also use lines of the type "REPEAT <number>"
+# This means that the loadfile will repeat the next line
+# <number> times.
+#
+#
+#
+#
+# Delete an entire directory tree.
+#Deltree "/" SUCCESS
+#
+#
+#
+# MKDIR <path> <status>
+MKDIR "/foo" SUCCESS
+#
+#
+# RMDIR <path> <status>
+RMDIR "/foo" SUCCESS
+RMDIR "/foo" ERROR
+RMDIR "/foo" *
+#
+#
+# Open/Create
+# OPEN <path> <flags> <status>
+# Flags are the combination of these flags, ored together
+#     0x01    O_RDONLY
+#     0x02    O_WRONLY
+#     0x04    O_RDWR
+#
+#     0x08    O_CREAT create the file if it does nto exist
+#     0x10    O_EXCL  fail if the file already exists
+#     0x20    O_TRUNC if the file exists, truncate it
+#     0x40    O_APPEND open in append mode only
+OPEN "/test.txt" 0x0c SUCCESS
+#
+#
+#
+# WRITE <path> <offset> <length> <status>
+WRITE "/test.txt" 0 50 SUCCESS
+WRITE "/test.txt" 50 50 SUCCESS
+#
+#
+# perform 10 writes of 4k byte to a random offset aligned to 4k between 
+# 0 and 0x1000000
+REPEAT 10
+WRITE "/test.txt" *%0x10000000/4096 4096 SUCCESS
+#
+#
+# READ <path> <offset> <length> <status>
+READ "/test.txt" 0 100 SUCCESS
+#
+#
+#
+# CLOSE <path> <status>
+CLOSE "/test.txt" SUCCESS
+#
+#
+#
+# UNLINK <path> <status>
+UNLINK "/test.txt" SUCCESS
+#
+#
+#
+# READDIR <path> <status>
+READDIR "/" SUCCESS

@@ -1,0 +1,61 @@
+#!/usr/bin/env python2
+
+import errno
+import sys
+
+# Get /proc/cpuinfo 
+#  processor   = logical processor number
+#  physical id = chip 
+#  core id     = physical core id in a chip
+#  cpu cores   = number of cores in a chip
+cpuinfo = [dict(map(str.strip, line.split(":", 1))
+                for line in block.splitlines())
+           for block in sys.stdin.read().split("\n\n")
+           if len(block.strip())]
+
+# Build topology map
+pc_map = {}
+physical_id_set = set()
+core_id_set = set()
+for cpu in cpuinfo:
+    physical_id = cpu["physical id"]
+    core_id = cpu["core id"]
+    key =  physical_id + ":" + core_id
+    pc_map.setdefault(key, []).append(cpu)
+    physical_id_set.add(int(physical_id))
+    core_id_set.add(int(core_id))
+    cache_per_core = cpu["cache size"].split()[0]
+
+
+model_name     = cpuinfo[0]["model name"]
+physical_ids = list(physical_id_set)
+core_ids = list(core_id_set)
+physical_ids.sort()
+core_ids.sort()
+physical_chips = len(physical_ids)
+core_per_chip  = len(core_ids)
+smt_level      = len(pc_map[str(list(physical_ids)[0]) + ":" + str(list(core_ids)[0])])
+
+# Generate sequential order 
+def seq(cpuinfo):
+    for smt in range(0, smt_level):
+        for physical_id in physical_ids:
+            for core_id in core_ids:
+                key =  str(physical_id) + ":" + str(core_id)
+                yield pc_map[key][smt]
+
+# Generate round robin order 
+def rr(cpuinfo):
+    for smt in range(0, smt_level):
+        for core_id in core_ids:
+            for physical_id in physical_ids:
+                key =  str(physical_id) + ":" + str(core_id)
+                yield pc_map[key][smt]
+
+print "model name     : %s" % model_name
+print "physical chips : %s" % physical_chips
+print "core per chip  : %s" % core_per_chip
+print "smt level      : %s" % smt_level
+print "cache per core : %s" % cache_per_core
+print "seq            : %s" % ",".join(cpu["processor"] for cpu in seq(cpuinfo))
+print "rr             : %s" % ",".join(cpu["processor"] for cpu in rr(cpuinfo))

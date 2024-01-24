@@ -1,0 +1,5 @@
+# Just try to release a reservation not done by this 
+# instance. So, it should fail
+
+# Release (type = 1)
+20.000 PROUT 2  1 0xdeadbeef          0 0x02

@@ -1,0 +1,219 @@
+#!/usr/bin/env python2
+
+import sys, os, optparse
+from cpuinfo import *
+
+FIELDS = ["processor", "socket", "coreid", "thread", "apicid", "node"]
+
+# Process arguments
+
+# set-cpus is really two programs rolled into one; instead of
+# hotplugging CPU's, it can just list them.  The documentation we give
+# differs slightly between these two uses.
+personality = "set"
+if len(sys.argv) > 1 and sys.argv[1] == "--list":
+    personality = "list"
+
+epilog = """
+Sorters specify how to sort the list of CPU's and can be used to
+generate difference sequences of CPU's (which is particularly useful
+in conjunction with --limit).  Sorters are applied to the list of
+CPU's in the order given so, for example,
+  %prog coreid thread -n N
+yields the first N CPU's in round-robin order across sockets.  Any
+field can be given as a sorter, plus the predefined 'seq' and 'rr'
+sorters.  'seq' is equivalent to 'socket' and 'rr' is equivalent to
+'coreid thread'.
+
+Sorters can also be given as '<field>@<seq>' where <seq> is a
+comma-separated list of values and ranges to use as an order.  This
+form also filters to values of field in seq.
+
+Filters restrict the set of CPU's and are either a CPU mask (e.g.,
+'0-6,10') or of the form '<field>==<val>'.  For example,
+  %prog thread==0
+restricts %prog to hardware thread 0.  Additional filters are 'present',
+'possible', 'online', 'offline', and 'all' (the intersection of 'present'
+and 'possible').
+
+Fields:
+  processor  The processor's unique number (each hardware thread counts
+             as a 'processor').
+  socket     The core/thread's socket
+  coreid     Which core within its socket (different threads in the same
+             core will have equal coreid's)
+  thread     Which thread within a core
+  apicid     The core's hardware APIC ID
+  node       The core's NUMA node
+"""
+
+parser = optparse.OptionParser("usage: %prog [options] <sorters and filters...>")
+parser.format_epilog = lambda formatter: parser.expand_prog_name(epilog)
+parser.add_option("--list", dest="set", action="store_false",
+                  help="only list CPU's that would be enabled"
+                  if personality=="set" else optparse.SUPPRESS_HELP)
+parser.add_option("--compact", dest="display", action="store_const", const="compact",
+                  help="display results as comma-separated ranges" +
+                  (" (default)" if personality == "list" else ""))
+parser.add_option("--compact-set", dest="display", action="store_const", const="compact-set",
+                  help="display results as unordered comma-separated ranges" +
+                  (" (default)" if personality == "set" else ""))
+parser.add_option("--comma", dest="display", action="store_const", const="comma",
+                  help="display results as a comma-separated list")
+parser.add_option("--space", dest="display", action="store_const", const="space",
+                  help="display results as a space-separated list")
+parser.add_option("--table", dest="display", action="store_const", const="table",
+                  help="display results in tabular format")
+parser.add_option("-n", "--limit", dest="limit", type="int",
+                  help="how many processors to output")
+parser.add_option("-s", "--start", dest="start", type="int",
+                  help="skip the first START matching processors")
+parser.add_option("--cpuinfo", dest="cpuinfo", metavar="FILE",
+                  help="path to cpuinfo file (default: %default)")
+parser.set_defaults(set=True,
+                    display="compact" if personality=="list" else "compact-set",
+                    limit=None, cpuinfo="%s:/proc/cpuinfo" % INITCPUINFO,
+                    sort=False)
+
+(options, args) = parser.parse_args()
+
+if options.set and not len(args):
+    parser.error("No CPU's specified (hint: use 'all' to enable all CPU's)")
+
+baseCPUs = None
+def updateBaseCPUs(cpuset):
+    global baseCPUs
+    if baseCPUs is None:
+        baseCPUs = cpuset
+    else:
+        baseCPUs.intersection_update(cpuset)
+
+filters = []
+sorters = []
+operators = { '==': lambda a, b: a == b,
+	      '<':  lambda a, b: a < b,
+	      '<=': lambda a, b: a <= b,
+	      '>':  lambda a, b: a > b,
+	      '>=': lambda a, b: a >= b,
+	    }
+for arg in args:
+    if arg == "seq":
+        sorters.append(lambda cpu: cpu["socket"])
+    elif arg == "rr":
+        sorters.append(lambda cpu: cpu["coreid"])
+        sorters.append(lambda cpu: cpu["thread"])
+    elif arg and arg[0].isdigit():
+        try:
+            updateBaseCPUs(set(parseRange(arg)))
+        except ValueError, e:
+            parser.error(e)
+    elif arg in ("present", "possible", "online", "offline"):
+        updateBaseCPUs(getCPUSet(arg))
+    elif arg == "all":
+        updateBaseCPUs(getCPUSet("present").
+                       intersection(getCPUSet("possible")))
+    elif any(op in arg for op in operators.keys()):
+	op = (op for op in operators.keys() if op in arg).next()
+        field, value = arg.split(op, 1)
+        if field not in FIELDS:
+            parser.error("unknown filter %r" % field)
+        if not value.isdigit():
+            parser.error("invalid filter value: %r" % value)
+        filters.append(lambda cpu, field = field, value = int(value),
+			      compare = operators[op]:
+                           compare(cpu[field], value))
+    elif '@' in arg:
+        field, perm = arg.split('@', 1)
+        if field not in FIELDS:
+            parser.error("unknown sorter %r" % field)
+        try:
+            perm = parseRange(perm)
+        except ValueError, e:
+            parser.error(e)
+        filters.append(lambda cpu, field=field, perm=perm: cpu[field] in perm)
+        sorters.append(lambda cpu, field=field, perm=perm:
+                       perm.index(cpu[field]))
+    else:
+        if arg not in FIELDS:
+            parser.error("unknown sorter %r" % arg)
+        sorters.append(lambda cpu, field = arg: cpu[field])
+
+# If the base CPU set wasn't directly filtered in any way, default to
+# present CPU's.
+if baseCPUs is None:
+    baseCPUs = getCPUSet("present")
+
+# Get cpuinfo
+# [{field : value}]
+if filters or sorters or options.display == "table":
+    cpuinfo = expandCpuinfo(findCpuinfo(options.cpuinfo.split(":"), baseCPUs))
+    cpuinfo = filter(lambda cpu: cpu["processor"] in baseCPUs, cpuinfo)
+else:
+    # Fake just what we need.  This way we don't care if /proc/cpuinfo
+    # is incomplete
+    cpuinfo = [{"processor" : n} for n in sorted(baseCPUs)]
+
+# Filter and sort
+for filt in filters:
+    cpuinfo = filter(filt, cpuinfo)
+for sorter in reversed(sorters):
+    cpuinfo.sort(key = sorter)
+if options.limit != None:
+    if options.start != None:
+      cpuinfo = cpuinfo[options.start:options.start+options.limit]
+    else:
+      cpuinfo = cpuinfo[:options.limit]
+
+# Set
+if options.set:
+    wantOnline = set(cpu["processor"] for cpu in cpuinfo)
+    wantOffline = getCPUSet("present") - wantOnline
+
+    # We can only bring online CPU's that are both possible (the
+    # kernel allocated resources for them) and physically present
+    bad = wantOnline - getCPUSet("present")
+    if bad:
+        print >> sys.stderr, "CPU(s) %s are not present" % strRange(sorted(bad))
+        sys.exit(1)
+    bad = wantOnline - getCPUSet("possible")
+    if bad:
+        print >> sys.stderr, \
+            ("CPU(s) %s are present, but not allocated by the kernel" %
+             strRange(sorted(bad)))
+        sys.exit(1)
+
+    # We can't change all CPU states
+    enable = wantOnline - getCPUSet("online")
+    disable = wantOffline - getCPUSet("offline")
+    for plug in enable.union(disable):
+        if not os.path.exists("/sys/devices/system/cpu/cpu%d/online" % plug):
+            print >> sys.stderr, "CPU %d cannot be hot-plugged" % plug
+            sys.exit(1)
+
+    # Do it!
+    msg = "Enabling %s" % strRange(sorted(wantOnline))
+    if wantOffline:
+        msg += ", disabling %s" % strRange(sorted(wantOffline))
+    print >> sys.stderr, msg+"..."
+    for plug in getCPUSet("present"):
+        path = "/sys/devices/system/cpu/cpu%d/online" % plug
+        if plug in enable:
+            print >> file(path, "w"), "1"
+        elif plug in disable:
+            print >> file(path, "w"), "0"
+
+# Print
+if options.display == "compact":
+    print strRange(cpu["processor"] for cpu in cpuinfo)
+elif options.display == "compact-set":
+    print strRange(sorted(cpu["processor"] for cpu in cpuinfo))
+elif options.display == "comma":
+    print ",".join(str(cpu["processor"]) for cpu in cpuinfo)
+elif options.display == "space":
+    print " ".join(str(cpu["processor"]) for cpu in cpuinfo)
+elif options.display == "table":
+    print "processor socket coreid thread apicid node"
+    for cpu in cpuinfo:
+        print "%-9d %-6d %-6d %-6d %-6d %s" % \
+            (cpu["processor"], cpu["socket"], cpu["coreid"], cpu["thread"],
+             cpu["apicid"], cpu.get("node", "unknown"))

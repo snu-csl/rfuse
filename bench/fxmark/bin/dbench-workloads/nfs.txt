@@ -1,0 +1,130 @@
+# The READ3/WRITE3 commands takes an offset. This can be specified either as
+# an absolute number, but also as a simple expression for generation of
+# random I/O
+#
+# Offset is then a string starting with a '*' followed by one or more
+# qualifier :
+# '*'    : Random 64 bit integer
+# '/yyy' : align the number to yyy. This is the same as x = (x/y)*y
+# '%yyy' : modulo yyy. This is the same as x = x%y
+# '+yyy' : Add y
+#
+# Examples :
+# '*'         A random offset between 0 and 2**64-1
+# '*/0x1000'  A random offset aligned to a page boundary (4096)
+# '*/0x1000%5000000' A random offset between 0 and 500000 aligned to page
+#                    boundary
+#
+# '*%100+25'  A random offset between 25 and 124
+#
+#
+# You can also use lines of the type "REPEAT <number>"
+# This means that the loadfile will repeat the next line
+# <number> times.
+#
+#
+#
+# DELTREE if we want to delete the client directory everytime we restart 
+# the script. Remove these two lines if the script is only "read-only"
+# reading from pre-existing files in the /clients/clientX/ tree
+0.000 Deltree "/clients/client1" 0x00000000
+#
+#
+#
+# Make sure these directories exist. We specify * as the status code
+# since these directories might already exist and in which case
+# we dont care that the command returned an error.
+#
+#
+# MKDIR3 <path> <status>
+0.000 MKDIR3 "/clients" *
+0.000 MKDIR3 "/clients/client1" *
+#
+#
+#
+# This lookup must be performed to pre-load the name to filehandle cache.
+# Othervise we will get errors like this :
+#     failed to fetch handle in nfsio_read
+#
+# LOOKUP3 <path> <status>
+0.000 LOOKUP3 "/clients/client1" 0x00000000
+#
+#
+#
+# Here is where the script starts
+#
+# GETATTR3 <path> <status>
+0.010 GETATTR3 "/clients/client1" 0x00000000
+0.020 GETATTR3 "/clients/client1" 0x00000000
+0.030 GETATTR3 "/clients/client1" 0x00000000
+0.040 CREATE3  "/clients/client1/test.file" 0x00000000
+0.050 CREATE3  "/clients/client1/tmp.file" 0x00000000
+#
+#
+#
+# WRITE3 <path> <offset> <size> <status>
+#
+# second last argument to WRITE is the "stable' field.
+#  0 : UNSTABLE (default for NFS)
+#  1 : DATA STABLE
+#  2 : FILE STABLE
+1.000 WRITE3 "/clients/client1/test.file" 0 1024 0 0x00000000
+1.010 WRITE3 "/clients/client1/test.file" 1024 1024 0 0x00000000
+1.020 WRITE3 "/clients/client1/test.file" 2048 2048 0 0x00000000
+1.030 COMMIT3 "/clients/client1/test.file" 0x00000000
+#
+#
+#
+# READ <path> <offset> <size> <status>
+1.040 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+#
+#
+#
+#
+1.050 LOOKUP3 "/clients/client1/test.file" 0x00000000
+1.060 LINK3 "/clients/client1/hard.link" "/clients/client1/test.file" 0x00000000
+1.070 REMOVE3 "/clients/client1/hard.link" 0x00000000
+1.080 SYMLINK3 "/clients/client1/test.link" "/clients/client1/test.file" 0x00000000
+1.090 REMOVE3 "/clients/client1/test.link" 0x00000000
+1.100 MKDIR3 "/clients/client1/test.dir" 0x00000000
+1.110 RMDIR3 "/clients/client1/test.dir" 0x00000000
+# The READDIRPLUS3 function will automatically loop and read the entire
+# directory, so when transcoding from a network trace, only transcode
+# the initial READDIRPLUS3 into the clients.txt file (where cookie is 0)
+# and ignore all other READDIRPLUS3 calls.
+2.000 READDIRPLUS3 "/clients/client1" 0x00000000
+# The arguments are desired access and granted access
+2.010 ACCESS3 "/clients/client1" 0 0 0x00000000
+2.020 GETATTR3 "/clients/client1" 0x00000000
+2.030 GETATTR3 "/clients/client1" 0x00000000
+2.040 FSSTAT3 0x00000000
+2.050 FSINFO3 0x00000000
+3.000 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.010 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.020 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.030 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.040 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.050 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.060 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.070 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.080 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.090 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.100 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.100 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.110 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.120 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.130 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.140 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.150 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.160 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.170 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.180 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.190 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.200 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.200 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.210 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.220 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.230 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.240 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.250 READ3 "/clients/client1/test.file" 2048 2048 0x00000000
+3.260 READ3 "/clients/client1/test.file" 2048 2048 0x00000000

@@ -1,0 +1,46 @@
+# Example loadfile for SCSI
+# last value is sense or *
+#
+# timestamp TESTUNITREADY sense
+0.000 TESTUNITREADY 0x00
+#
+#
+# timestamp READ6 lba #xferlen sense
+#    if lba is 0xffffffff this means to use a random lba
+0.000 READ6    0 1 0x00
+#
+#
+# timestamp READ10 lba #xferlen rd grp sense
+#   if lba is 0xffffffff this means to use a random lba
+#
+#   rd is :
+#     3 bits     0xe0 : RDPROTECT
+#     1 bit      0x10 : DPO
+#     1 bit      0x08 : FUA
+#     1 bit      0x02 : FUA_NV
+0.000 READ10    0 256 0 0 0x00
+0.000 READ10 1000 256 0 0 0x00
+0.000 READ10 2000 256 0 0 0x00
+0.000 READ10 5000 256 0 0 0x00
+#
+#
+# timestamp READCAPACITY10 lba pmi(0/1) sense
+0.000 READCAPACITY10 0 0 0x00
+
+
+# timestamp SYNCHRONIZECACHE10 lba numblocks syncnv immed sense
+0.000 SYNCHRONIZECACHE10 0 0 1 1 0x00
+
+#
+#
+# timestamp WRITE10 lba #xferlen FUAbits grp sense
+# WRITES are ignored by default and must be activated using --allow-scsi-writes
+#
+#   if lba is 0xffffffff this means to use a random lba
+#
+#   FUAbits are cdb byte#1 in SBC:
+#     a value of 0x06 will force the data to be written to the medium
+#     a value of 0x00 allow the device to only write to nv-ram and not medium
+0.000 WRITE10 5000 1 0x06 0 0x00
+
+

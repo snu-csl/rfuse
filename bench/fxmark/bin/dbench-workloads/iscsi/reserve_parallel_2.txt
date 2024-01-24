@@ -1,0 +1,8 @@
+# Register 0xfee
+1.000 PROUT 0  0 0         0xfee 0x00
+# Reserve (type = 1)
+1.000 PROUT 1  1 0xfee         0 0x18
+# Release (type = 1)
+1.000 PROUT 2  1 0xfee         0 0x00
+# Unregister
+1.000 PROUT 0  0 0xfee         0 0x00

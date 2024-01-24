@@ -1,0 +1,12 @@
+# Just register a key, release a target and then release it
+# two times, which should be Ok.
+
+# Register
+0.000 PROUT 0  0          0 0xdeadbeef 0x00
+# Reserve (type = 1)
+1.000 PROUT 1  1 0xdeadbeef          0 0x00
+# Release
+1.000 PROUT 2  1 0xdeadbeef          0 0x00
+1.000 PROUT 2  1 0xdeadbeef          0 0x00
+# Unregister
+2.000 PROUT 0  0 0xdeadbeef          0 0x00

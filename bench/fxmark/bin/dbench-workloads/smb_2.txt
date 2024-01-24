@@ -1,0 +1,9 @@
+# example loadfile for SMB
+# create a file and write 40k to it at sequentially, 4kb at a time
+#
+#MKDIR "/client1" *
+OPEN "/client1/test.txt" 0x0c SUCCESS
+WRITE "/client1/test.txt" 0 4096 SUCCESS
+REPEAT 9
+WRITE "/client1/test.txt" +4096 4096 SUCCESS
+CLOSE "/client1/test.txt" SUCCESS

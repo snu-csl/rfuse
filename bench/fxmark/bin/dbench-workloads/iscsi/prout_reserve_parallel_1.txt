@@ -1,0 +1,17 @@
+# Just register a key, reserve a device and then wait some minutes
+# and release the device and unregister the key.
+# To be used in parallel with reserve_parallel_2.txt
+
+#Register
+0.000 PROUT 0  0          0 0xdeadbeef 0x00
+# Reserve (type = 1)
+0.000 PROUT 1  1 0xdeadbeef          0 0x00
+
+
+## WAITING.....
+
+
+# Release (type = 1)
+20.000 PROUT 2  1 0xdeadbeef          0 0x00
+# Unregister
+20.000 PROUT 0  0 0xdeadbeef          0 0x00

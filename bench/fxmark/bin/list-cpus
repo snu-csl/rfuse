@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+import sys, os, optparse
+
+# option parsing
+parser = optparse.OptionParser("usage: %prog [options] <sorters and filters...>")
+parser.format_epilog = lambda formatter: parser.expand_prog_name(epilog)
+parser.add_option("--order", dest="order", 
+                  help="list order of cpus")
+parser.add_option("--compact", dest="display", action="store_const", const="compact",
+                  help="display results as comma-separated ranges")
+parser.add_option("--compact-set", dest="display", action="store_const", const="compact-set",
+                  help="display results as unordered comma-separated ranges")
+parser.add_option("--comma", dest="display", action="store_const", const="comma",
+                  help="display results as a comma-separated list")
+parser.add_option("--space", dest="display", action="store_const", const="space",
+                  help="display results as a space-separated list")
+parser.add_option("-n", "--limit", dest="limit", type="int",
+                  help="how many processors to output")
+parser.add_option("-s", "--start", dest="start", type="int",
+                  help="skip the first START matching processors")
+parser.add_option("--cpupolicy", dest="cpupolicy", metavar="FILE",
+                  help="path to cpupolicy.py file (default: %default)")
+parser.add_option("--thread", dest="thread", type="int",
+                  help="a set of hyper threads")
+parser.set_defaults(order="seq", display="compact", 
+                    limit=None, thread=None, cpupolicy="./", 
+                    sort=False)
+
+(options, args) = parser.parse_args()
+
+# load cpupolicy
+if options.cpupolicy[0] == '/':
+    sys.path.append(options.cpupolicy)
+else:
+    cur_dir = os.path.dirname( os.path.abspath(sys.modules[__name__].__file__) )
+    sys.path.append(cur_dir + "/" + options.cpupolicy)
+import corepolicy
+
+# formatting
+def strRange(cpus):
+    spans = []
+    for cpu in cpus:
+        if spans and cpu == spans[-1][1] + 1:
+            spans[-1][1] = cpu
+        else:
+            spans.append([cpu, cpu])
+    return ",".join("%d" % s[0] if s[0] == s[1]
+                    else ("%d,%d" % tuple(s) if s[1] == s[0] + 1
+                          else "%d-%d" % tuple(s))
+                    for s in spans)
+
+def format_list(list, style):
+    if style == "compact":
+        return strRange(list)
+    elif style == "compact-set":
+        return strRange(sorted(list))
+    elif style == "comma":
+        return ",".join(str(l) for l in list)
+    elif style == "space":
+        return " ".join(str(l) for l in list)
+
+# choose list of cpus according to options<
+def list_cpus(order, thread=None, limit=None, style="space"):
+    # select order 
+    cores = order == "seq" and corepolicy.seq_cores or corepolicy.rr_cores
+    
+    # select smt set 
+    if thread != None:
+        # sanity check 
+        if thread < 0 or thread >= corepolicy.SMT_LEVEL:
+            print "Thread bound error: %s" % thread
+            sys.exit(1)
+        unit = corepolicy.PHYSICAL_CHIPS * corepolicy.CORE_PER_CHIP
+        cores = cores[thread * unit:(thread + 1) * unit]
+
+    # limit the number 
+    if limit != None:
+        cores = cores[0:limit]
+
+    # formatting
+    list_str = format_list(cores, style)
+    return list_str
+        
+if __name__ == "__main__":
+    str = list_cpus(options.order, options.thread, options.limit, options.display)
+    print str

@@ -1,0 +1,41 @@
+MKDIR3 "/clients" *
+MKDIR3 "/clients/client1" *
+LOOKUP3 "/clients/client1" 0x00000000
+#
+#
+# Writepattern sets the pattern to write. this pattern is repeated to fill the write buffer.
+#
+WRITEPATTERN 1234567890
+CREATE3  "/clients/client1/test.file" 0x00000000
+WRITE3 "/clients/client1/test.file" 0 32768 0 0x00000000
+REPEAT 1000
+WRITE3 "/clients/client1/test.file" +32768 32768 0 0x00000000
+COMMIT3 "/clients/client1/test.file" 0x00000000
+
+
+
+
+
+# The READ3/WRITE3 commands takes an offset. This can be specified either as
+# an absolute number, but also as a simple expression for generation of
+# random I/O
+#
+# Offset is then a string starting with a '*' followed by one or more
+# qualifier :
+# '*'    : Random 64 bit integer
+# '/yyy' : align the number to yyy. This is the same as x = (x/y)*y
+# '%yyy' : modulo yyy. This is the same as x = x%y
+# '+yyy' : Add y
+#
+# Examples :
+# '*'         A random offset between 0 and 2**64-1
+# '*/0x1000'  A random offset aligned to a page boundary (4096)
+# '*/0x1000%5000000' A random offset between 0 and 500000 aligned to page
+#                    boundary
+#
+# '*%100+25'  A random offset between 25 and 124
+#
+#
+# You can also use lines of the type "REPEAT <number>"
+# This means that the loadfile will repeat the next line
+# <number> times.
