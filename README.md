@@ -1,5 +1,5 @@
 
-# RFUSE Artifact Evaluation [FAST '24]
+# RFUSE: Modernizing Userspace Filesystem Framework through Scalable Kernel-Userspace Communication [FAST '24]
 
 This repository contains the artifact for reproducing our FAST '24 paper "RFUSE: Modernizing Userspace Filesystem Framework through Scalable Kernel-Userspace Communication". 
 
