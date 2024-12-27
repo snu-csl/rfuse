@@ -121,3 +121,16 @@ $ ./run.sh ssd-noclean      # (Mount StackFS without formatting base device)
 # Experiments 
 
 Please refer to [Experiment Guide](bench/README.md) 
+
+# Contributing
+When contributing to this repository, please first discuss the change you wish to make via [issues](https://github.com/snu-csl/rfuse/issues) or email(bori19960@snu.ac.kr) before making a change.
+
+### Pull Requests
+1. Create a personal fork of the project on Github.
+2. Clone the fork on your local machine.
+3. Implement/fix your feature, comment your code.
+4. Follow the code style of this project, including indentation.
+5. Run tests based on the [Experiment Guide](bench/README.md)
+6. From your fork open a pull request in our `master` branch!
+7. Please wait for the maintainer's review.
+
