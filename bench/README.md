@@ -119,7 +119,7 @@ $ ./driver.sh
 
 3\) Known Issues of filebench
 
-* Filebench warns and recommends to disalble virtual address space randomization to provide stable filebench runs. If this feature is enabled, you may get ```Unexpected Process termination Code 3``` error. Our benchmark script disables this feature in advance when the script starts, but if you encount related error, please turn off it manually. 
+* Filebench warns and recommends to disable virtual address space randomization to provide stable filebench runs. If this feature is enabled, you may get ```Unexpected Process termination Code 3``` error. Our benchmark script disables this feature in advance when the script starts, but if you encount related error, please turn off it manually. 
     ```
     echo 0 > /proc/sys/kernel/randomize_va_space
     ```
