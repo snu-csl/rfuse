@@ -181,6 +181,7 @@ void rfuse_iqueue_init(struct fuse_conn *fc, void *priv){
 		riq[i]->reqbm.full=0;
 		riq[i]->argbm.full=0;
 		riq[i]->argbm.bitmap = kzalloc_node((RFUSE_MAX_QUEUE_SIZE*2)>>3, GFP_KERNEL, node_id);
+		set_bit(0, riq[i]->argbm.bitmap); /* slot 0 is reserved, see rfuse_put_argument_buffer() */
 		riq[i]->reqbm.bitmap = kzalloc_node((RFUSE_MAX_QUEUE_SIZE*2)>>3, GFP_KERNEL, node_id);
 
 		// init background queue
@@ -513,12 +514,22 @@ uint32_t rfuse_get_argument_buffer(struct fuse_mount *fm, int riq_id){
 
 void rfuse_put_argument_buffer(struct fuse_mount *fm, uint32_t arg_index, int riq_id){
 	struct rfuse_iqueue *riq = rfuse_get_specific_iqueue(fm->fc, riq_id);
+	/* Page-backed READ/WRITE requests record their byte count in
+	 * in.arglen[0]/out.arglen but never allocate an argument slot, so
+	 * in.arg[0]/out.arg stay 0 and rfuse_request_free() would free slot 0
+	 * while a LOOKUP/UNLINK/CREATE may still own it; the name in that slot
+	 * is then overwritten by the next allocation (seen as spurious ENOENT
+	 * under filebench). Slot 0 is reserved in rfuse_iqueue_init() and never
+	 * handed out, so a put of index 0 is a no-op. */
+	if (arg_index == 0)
+		return;
 	spin_lock(&riq->lock);
 
 	__clear_bit(arg_index,riq->argbm.bitmap);
 	
 	if(riq->argbm.full == 1){
-		riq->reqbm.full = 0;
+		// riq->reqbm.full = 0;
+		riq->argbm.full = 0;
 		wake_up(&riq->waitq);
 	}
 	spin_unlock(&riq->lock);

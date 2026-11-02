@@ -799,8 +799,18 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	fc->max_pages = FUSE_DEFAULT_MAX_PAGES_PER_REQ;
 	fc->max_pages_limit = FUSE_MAX_MAX_PAGES;
 	
-	// (rfuse) Initialize the "RFUSE_NUM_IQUEUE" iqueues in fuse_conn 
-	rfuse_iqueue_init(fc, fiq_priv);	
+	// (rfuse) Initialize the "RFUSE_NUM_IQUEUE" iqueues in fuse_conn
+	rfuse_iqueue_init(fc, fiq_priv);
+
+	/*
+	 * (rfuse) FUSE_POLL still goes through the legacy /dev/fuse request
+	 * queue, which no rfuse daemon reads, so a single ->poll call (e.g.
+	 * io_uring arming a poll handler after an -EAGAIN buffered write)
+	 * blocks in request_wait_answer() forever.  Pretend the daemon
+	 * already replied ENOSYS: poll reports the file as always ready,
+	 * same as a libfuse server without a .poll handler.
+	 */
+	fc->no_poll = 1;
 
 	INIT_LIST_HEAD(&fc->mounts);
 	list_add(&fm->fc_entry, &fc->mounts);
