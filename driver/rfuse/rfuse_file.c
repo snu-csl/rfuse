@@ -542,7 +542,7 @@ static void rfuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 	spin_unlock(&io->lock);
 
 	if (!left && !io->blocking) {
-		printk("io is non blocking\n");
+		// printk("io is non blocking\n");
 		res = rfuse_get_res_by_io(io);
 
 		if (res >= 0) {
@@ -571,7 +571,7 @@ static int rfuse_get_user_pages(struct rfuse_io_args *ria, struct iov_iter *ii,
 
 	/* Special case for kernel I/O: can copy directly into the buffer */
 	if (iov_iter_is_kvec(ii)) {
-		printk("iov_iter_is_kvec = true\n");
+		// printk("iov_iter_is_kvec = true\n");
 		/*
 		unsigned long user_addr = fuse_get_user_addr(ii);
 		size_t frag_size = fuse_get_frag_size(ii, *nbytesp);
@@ -587,11 +587,11 @@ static int rfuse_get_user_pages(struct rfuse_io_args *ria, struct iov_iter *ii,
 		*/
 	}
 
-	printk("rfuse_get_uesr_pages: nbytesp : %ld, max_pages: %d\n", *nbytesp, max_pages);
+	// printk("rfuse_get_uesr_pages: nbytesp : %ld, max_pages: %d\n", *nbytesp, max_pages);
 	while (nbytes < *nbytesp && rp->num_pages < max_pages) {
 		unsigned npages;
 		size_t start;
-		printk("rfuse_get_user_pages: while start\n");
+		// printk("rfuse_get_user_pages: while start\n");
 		ret = iov_iter_get_pages(ii, &rp->pages[rp->num_pages],
 					*nbytesp - nbytes,
 					max_pages - rp->num_pages,
@@ -742,9 +742,9 @@ ssize_t rfuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		if (!blocking)
 			return -EIOCBQUEUED;
 
-		printk("direct_IO: wait is started\n");
+		// printk("direct_IO: wait is started\n");
 		wait_for_completion(&wait);
-		printk("direct_IO: wait is ended\n");
+		// printk("direct_IO: wait is ended\n");
 		ret = rfuse_get_res_by_io(io);
 	}
 

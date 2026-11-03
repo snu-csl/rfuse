@@ -1100,7 +1100,11 @@ static void rfuse_do_write(fuse_req_t u_req, fuse_ino_t nodeid){
 	int pp_riq_id = (riq_id << 16) & RFUSE_RIQ_ID_MASK;
 	
 	if(!u_req->w->fbuf.mem) {
-		u_req->w->fbuf.mem = malloc(FUSE_MAX_MAX_PAGES * getpagesize());
+		/* Page-align the write payload: StackFS-style filesystems pass
+		 * O_DIRECT through to the lower fs, whose pwrite() needs an
+		 * aligned buffer (plain malloc() returns page+16 -> EINVAL). */
+		u_req->w->fbuf.mem = aligned_alloc(getpagesize(),
+				FUSE_MAX_MAX_PAGES * getpagesize());
 		if(!u_req->w->fbuf.mem) {
 			printf("Error : malloc for write I/O failed\n");
 			fuse_reply_err(u_req, EIO);
